@@ -1,0 +1,65 @@
+pipeline {
+    agent any
+
+    tools {
+        jdk 'JDK17'
+        maven 'Maven3'
+    }
+
+    environment {
+        // Replace these values with the exact project key and organization shown in SonarQube Cloud.
+        SONAR_PROJECT_KEY = 'REPLACE_WITH_YOUR_SONARCLOUD_PROJECT_KEY'
+        SONAR_ORGANIZATION = 'REPLACE_WITH_YOUR_SONARCLOUD_ORGANIZATION'
+    }
+
+    stages {
+        stage('1. Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('2. Build and Test') {
+            steps {
+                sh 'mvn clean verify'
+            }
+        }
+
+        stage('3. SonarCloud Scanning') {
+            steps {
+                withSonarQubeEnv('SonarCloud') {
+                    sh '''
+                        mvn sonar:sonar                           -Dsonar.projectKey=$SONAR_PROJECT_KEY                           -Dsonar.organization=$SONAR_ORGANIZATION                           -Dsonar.host.url=https://sonarcloud.io
+                    '''
+                }
+            }
+        }
+
+        stage('4. Quality Gate') {
+            steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('5. Publish Artifact') {
+            steps {
+                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Review Console Output for details.'
+        }
+        always {
+            junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true
+            archiveArtifacts artifacts: 'target/site/jacoco/**', allowEmptyArchive: true
+        }
+    }
+}
