@@ -1,0 +1,241 @@
+JAVA MAVEN + JENKINS + SONARQUBE CLOUD CI/CD PROJECT
+Setup Notes, Questions, Steps, and Troubleshooting
+===================================================
+
+PROJECT GOAL
+------------
+Build a Java Maven application with Jenkins on AWS EC2, analyze code using
+SonarQube Cloud, enforce a Quality Gate, and archive the generated JAR.
+
+GITHUB REPOSITORY
+-----------------
+Repository: https://github.com/Samina-05/sonar-qube-java-project
+Project folder inside repository: java-maven-sonarcloud-project/
+
+Expected folder structure:
+sonar-qube-java-project/
+└── java-maven-sonarcloud-project/
+    ├── Jenkinsfile
+    ├── pom.xml
+    ├── README.md
+    ├── .gitignore
+    └── src/
+        ├── main/java/com/example/Calculator.java
+        └── test/java/com/example/CalculatorTest.java
+
+SONARQUBE CLOUD VALUES
+----------------------
+Organization key: samina-05
+Project key: Samina-05_sonar-qube-java-project
+SonarQube Cloud URL: https://sonarcloud.io
+
+Never put a SonarQube Cloud token in this file, in GitHub, or in the Jenkinsfile.
+Store the token securely in Jenkins Credentials.
+
+ENVIRONMENT AND JENKINS CONFIGURATION
+-------------------------------------
+- Jenkins is running on an Ubuntu AWS EC2 instance.
+- Java 21 is installed / intended for the Jenkins build.
+- Jenkins Maven tool installation name: M3
+- Jenkins JDK tool installation name: JDK21
+- Jenkins SonarQube server configuration name: SonarCloud
+- Jenkins SonarQube server URL: https://sonarcloud.io
+- Jenkins job name used during setup: java-maven-sonarcloud (job names can vary)
+- Pipeline definition: Pipeline script from SCM
+- SCM: Git
+- Repository URL: https://github.com/Samina-05/sonar-qube-java-project.git
+- Branch: choose the branch that contains the latest project files (main or master)
+- Script Path: java-maven-sonarcloud-project/Jenkinsfile
+
+WHY THE SCRIPT PATH INCLUDES A FOLDER
+-------------------------------------
+The Jenkinsfile and pom.xml are not in the root of the GitHub repository.
+They are inside java-maven-sonarcloud-project/, so Jenkins Script Path must be:
+java-maven-sonarcloud-project/Jenkinsfile
+
+The Maven commands must also run from the folder containing pom.xml:
+dir('java-maven-sonarcloud-project') { ... }
+
+WHAT WE DID: STEP BY STEP
+-------------------------
+1. Created a sample Java Maven project.
+   - Calculator.java contains simple calculator methods.
+   - CalculatorTest.java contains JUnit 5 tests.
+   - pom.xml defines Maven build settings, JUnit, JaCoCo coverage, and Sonar Maven Scanner.
+   - Jenkinsfile defines the CI/CD pipeline.
+
+2. Pushed the project to GitHub.
+   - Repository: Samina-05/sonar-qube-java-project
+   - The project files are inside the java-maven-sonarcloud-project/ subfolder.
+   - Both main and master branches exist. This is okay, but Jenkins must use the
+     branch that contains the current Jenkinsfile and pom.xml.
+
+3. Created a SonarQube Cloud account/project.
+   - Organization key: samina-05
+   - Project key: Samina-05_sonar-qube-java-project
+   - Automatic Analysis was not selected because the intended analysis is run by Jenkins.
+
+4. Prepared Jenkins on Ubuntu EC2.
+   - Opened the Jenkins dashboard.
+   - Maven is configured under Manage Jenkins > Tools with the name M3.
+   - Java 21 is the intended build JDK.
+
+5. Installed the SonarQube Scanner for Jenkins plugin.
+   - This plugin adds the SonarQube server configuration section in Jenkins.
+
+6. Added the SonarCloud token to Jenkins Credentials.
+   - Credential kind: Secret text
+   - Example credential ID: sonarcloud-token
+   - The credential ID is a label; the actual token must remain secret.
+
+7. Configured the SonarQube server in Jenkins.
+   - Manage Jenkins > System > SonarQube servers
+   - Name: SonarCloud
+   - URL: https://sonarcloud.io
+   - Authentication token: the saved SonarCloud credential
+
+8. Created a Jenkins Pipeline job.
+   - Selected Pipeline script from SCM.
+   - Configured Git repository URL and the correct branch.
+   - Set Script Path to java-maven-sonarcloud-project/Jenkinsfile.
+
+9. Fixed the Jenkinsfile path error.
+   - Initial error: Jenkins could not find the Jenkinsfile.
+   - Cause: Jenkinsfile was in a subfolder, not the repository root.
+   - Fix: set Script Path to java-maven-sonarcloud-project/Jenkinsfile.
+
+10. Fixed the Maven working-directory error.
+    - Initial error: Maven could not find pom.xml in the Jenkins workspace root.
+    - Cause: pom.xml is inside java-maven-sonarcloud-project/.
+    - Fix: wrap Maven build and Sonar scan commands in:
+      dir('java-maven-sonarcloud-project') { ... }
+    - Artifact and report paths must include the subfolder prefix.
+
+11. Addressed the Java compiler version error.
+    - Errors seen: "release version 17 not supported" and later
+      "release version 21 not supported".
+    - These errors mean Maven was running with a JDK that could not compile for
+      the configured release. The Java used by Maven on the Jenkins agent must
+      match the configured JDK.
+    - Java 21 home path found on Ubuntu:
+      /usr/lib/jvm/java-21-openjdk-amd64
+    - Jenkins Tools JDK name intended: JDK21
+    - pom.xml compiler release was changed to 21.
+    - Verify this is fixed by checking `mvn -version` in the Jenkins build log;
+      it should report Java 21. If it does not, correct Jenkins JDK configuration.
+
+CURRENT PIPELINE STAGES
+-----------------------
+1. Checkout
+   Downloads source code from GitHub using checkout scm.
+
+2. Build and Test
+   Runs `mvn clean verify` from java-maven-sonarcloud-project/.
+   This compiles the Java application and runs unit tests.
+
+3. SonarCloud Scanning
+   Runs the Maven Sonar scanner using:
+   - Project key: Samina-05_sonar-qube-java-project
+   - Organization: samina-05
+   - Host URL: https://sonarcloud.io
+   The Jenkins server configuration name used by withSonarQubeEnv is SonarCloud.
+
+4. Quality Gate
+   Runs waitForQualityGate and aborts the pipeline if the gate fails.
+   This requires a working SonarQube Cloud webhook to Jenkins and an accessible
+   Jenkins URL. A webhook URL usually ends with:
+   /sonarqube-webhook/
+   Do not assume the gate is configured for 80% unless that condition has been
+   set in SonarQube Cloud Quality Gate settings.
+
+5. Publish Artifact
+   Archives the JAR from:
+   java-maven-sonarcloud-project/target/*.jar
+
+POST ACTIONS
+------------
+- Publishes JUnit test reports from:
+  java-maven-sonarcloud-project/target/surefire-reports/*.xml
+- Archives JaCoCo coverage reports from:
+  java-maven-sonarcloud-project/target/site/jacoco/**
+
+IMPORTANT JENKINSFILE DETAILS
+-----------------------------
+The tools block should refer to the names configured in Jenkins:
+tools {
+    jdk 'JDK21'
+    maven 'M3'
+}
+
+The SonarQube server name must match:
+withSonarQubeEnv('SonarCloud')
+
+Use the following Maven command pattern inside the project folder:
+mvn sonar:sonar   -Dsonar.projectKey=Samina-05_sonar-qube-java-project   -Dsonar.organization=samina-05   -Dsonar.host.url=https://sonarcloud.io
+
+The SonarCloud token should be supplied securely by Jenkins configuration.
+Never hard-code it in the command or source files.
+
+QUESTIONS AND ANSWERS / TROUBLESHOOTING
+---------------------------------------
+Q: Can both main and master branches exist?
+A: Yes. This does not automatically cause a problem. Configure Jenkins to use the
+   branch containing the current code and Jenkinsfile.
+
+Q: Why did Jenkins say it could not find Jenkinsfile?
+A: The file is in java-maven-sonarcloud-project/. Use that folder in Script Path.
+
+Q: Why did Maven say there was no POM in the workspace?
+A: Maven ran from the repository root, but pom.xml is in a subfolder. Use the
+   dir('java-maven-sonarcloud-project') block around Maven commands.
+
+Q: Why did Maven report "release version 17 not supported" or
+   "release version 21 not supported"?
+A: Maven was using an older or incompatible JDK. Check `mvn -version` in the
+   Jenkins Console Output. Configure Jenkins to use JDK21 and verify that the
+   Java home path is valid for the Jenkins agent.
+
+Q: What should successful build output look like?
+A: Maven should show BUILD SUCCESS. The unit tests should pass. SonarCloud analysis
+   should complete, the Quality Gate should pass, and Jenkins should archive a JAR.
+   The overall build should finish with SUCCESS. Exact log messages can vary.
+
+Q: Why can the Quality Gate stage keep waiting?
+A: Check the SonarQube Cloud webhook configuration and make sure SonarQube Cloud
+   can reach Jenkins. The webhook URL generally ends in /sonarqube-webhook/.
+   If Jenkins is private or only accessible locally, SonarQube Cloud may not reach it.
+
+Q: Does the pipeline enforce an 80% Quality Gate automatically?
+A: No. Configure the relevant 80% condition in SonarQube Cloud Quality Gate settings.
+   Coverage on New Code and overall coverage are different metrics.
+
+Q: Where can I see the generated JAR?
+A: Open the successful Jenkins build and look in its Artifacts section. The file is
+   expected under java-maven-sonarcloud-project/target/.
+
+Q: Should I commit the SonarCloud token to GitHub?
+A: No. Keep it in Jenkins Credentials as a secret text credential.
+
+NEXT CHECKS
+-----------
+[ ] Confirm the latest Jenkins build completes.
+[ ] Check `mvn -version` in the build log and verify Java 21 is used.
+[ ] Confirm all unit tests pass.
+[ ] Confirm SonarCloud shows a new analysis.
+[ ] Confirm the Quality Gate passes and the webhook works.
+[ ] Confirm the JAR is archived in Jenkins build artifacts.
+[ ] Confirm Jenkins is building the intended GitHub branch.
+
+USEFUL LINKS
+------------
+GitHub repository:
+https://github.com/Samina-05/sonar-qube-java-project
+
+SonarQube Cloud:
+https://sonarcloud.io/
+
+SonarScanner for Maven documentation:
+https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/scanners/sonarscanner-for-maven/
+
+Jenkins Pipeline documentation:
+https://www.jenkins.io/doc/book/pipeline/
