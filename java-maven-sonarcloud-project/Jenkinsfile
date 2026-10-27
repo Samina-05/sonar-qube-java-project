@@ -27,9 +27,12 @@ pipeline {
 
         stage('3. SonarCloud Scanning') {
             steps {
-                withSonarQubeEnv('SonarCloud') {
+                withSonarQubeEnv('SonarCloud') { 
                     sh '''
-                        mvn sonar:sonar                           -Dsonar.projectKey=$SONAR_PROJECT_KEY                           -Dsonar.organization=$SONAR_ORGANIZATION                           -Dsonar.host.url=https://sonarcloud.io
+                       mvn verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+                       -Dsonar.projectKey=Samina-05_sonar-qube-java-project
+                       -Dsonar.organization=$SONAR_ORGANIZATION
+                       -Dsonar.host.url=https://sonarcloud.io
                     '''
                 }
             }
