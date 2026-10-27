@@ -11,7 +11,7 @@
     <description>A beginner-friendly Java Maven project for Jenkins CI/CD and SonarQube Cloud.</description>
 
     <properties>
-        <maven.compiler.release>17</maven.compiler.release>
+        <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>5.10.2</junit.version>
         <sonar.organization>samina-05</sonar.organization>
