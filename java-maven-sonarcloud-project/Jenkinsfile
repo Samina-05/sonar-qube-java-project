@@ -1,3 +1,4 @@
+
 pipeline {
     agent any
 
@@ -6,7 +7,6 @@ pipeline {
     }
 
     environment {
-        // Replace these values with the exact project key and organization shown in SonarQube Cloud.
         SONAR_PROJECT_KEY = 'Samina-05_sonar-qube-java-project'
         SONAR_ORGANIZATION = 'samina-05'
     }
@@ -20,19 +20,23 @@ pipeline {
 
         stage('2. Build and Test') {
             steps {
-                sh 'mvn clean verify'
+                dir('java-maven-sonarcloud-project') {
+                    sh 'mvn clean verify'
+                }
             }
         }
 
         stage('3. SonarCloud Scanning') {
             steps {
-                withSonarQubeEnv('SonarCloud') { 
-                    sh '''
-                       mvn verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
-                       -Dsonar.projectKey=Samina-05_sonar-qube-java-project
-                       -Dsonar.organization=$SONAR_ORGANIZATION
-                       -Dsonar.host.url=https://sonarcloud.io
-                    '''
+                dir('java-maven-sonarcloud-project') {
+                    withSonarQubeEnv('SonarCloud') {
+                        sh '''
+                            mvn sonar:sonar \
+                              -Dsonar.projectKey=$SONAR_PROJECT_KEY \
+                              -Dsonar.organization=$SONAR_ORGANIZATION \
+                              -Dsonar.host.url=https://sonarcloud.io
+                        '''
+                    }
                 }
             }
         }
@@ -47,7 +51,10 @@ pipeline {
 
         stage('5. Publish Artifact') {
             steps {
-                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                archiveArtifacts(
+                    artifacts: 'java-maven-sonarcloud-project/target/*.jar',
+                    fingerprint: true
+                )
             }
         }
     }
@@ -56,12 +63,21 @@ pipeline {
         success {
             echo 'Pipeline completed successfully!'
         }
+
         failure {
-            echo 'Pipeline failed. Review Console Output for details.'
+            echo 'Pipeline failed. Review Console Output.'
         }
+
         always {
-            junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true
-            archiveArtifacts artifacts: 'target/site/jacoco/**', allowEmptyArchive: true
+            junit(
+                testResults: 'java-maven-sonarcloud-project/target/surefire-reports/*.xml',
+                allowEmptyResults: true
+            )
+
+            archiveArtifacts(
+                artifacts: 'java-maven-sonarcloud-project/target/site/jacoco/**',
+                allowEmptyArchive: true
+            )
         }
     }
 }
