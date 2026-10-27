@@ -8,8 +8,8 @@ pipeline {
 
     environment {
         // Replace these values with the exact project key and organization shown in SonarQube Cloud.
-        SONAR_PROJECT_KEY = 'REPLACE_WITH_YOUR_SONARCLOUD_PROJECT_KEY'
-        SONAR_ORGANIZATION = 'REPLACE_WITH_YOUR_SONARCLOUD_ORGANIZATION'
+        SONAR_PROJECT_KEY = 'Samina-05_sonar-qube-java-project'
+        SONAR_ORGANIZATION = 'samina-05'
     }
 
     stages {
